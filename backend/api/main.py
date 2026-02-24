@@ -52,9 +52,9 @@ async def _lifespan(app: FastAPI):
     try:
         _predictor = ECGPredictor()
         logger.info("Model ready on device=%s", _predictor.device_name)
-    except Exception as e:
+    except Exception:
         logger.exception("Model failed to load. API will start without model.")
-        _predictor = None  # allow service to boot
+        _predictor = None
 
     yield
 
