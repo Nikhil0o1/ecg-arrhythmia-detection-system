@@ -48,17 +48,17 @@ def _get_predictor() -> ECGPredictor:
 async def _lifespan(app: FastAPI):
     global _predictor
     logger.info("Loading ECG model at startup …")
+
     try:
         _predictor = ECGPredictor()
-        logger.info(
-            "Model ready on device=%s", _predictor.device_name
-        )
-    except Exception:
-        logger.exception("Failed to load model at startup")
-        raise
-    yield
-    logger.info("Shutting down ECG inference service.")
+        logger.info("Model ready on device=%s", _predictor.device_name)
+    except Exception as e:
+        logger.exception("Model failed to load. API will start without model.")
+        _predictor = None  # allow service to boot
 
+    yield
+
+    logger.info("Shutting down ECG inference service.")
 
 # ──────────────────────────────────────────────────────────────
 # App
