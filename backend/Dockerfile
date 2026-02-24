@@ -30,7 +30,7 @@ COPY --from=builder /install /usr/local
 COPY api/          api/
 COPY inference/    inference/
 COPY training/     training/
-COPY models/       models/
+
 
 # Ensure Python can find our packages
 ENV PYTHONPATH=/app \
