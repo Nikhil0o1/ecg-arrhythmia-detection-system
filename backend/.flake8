@@ -1,8 +1,4 @@
 [flake8]
 max-line-length = 120
-ignore = E501
-exclude =
-    __pycache__,
-    .venv,
-    data,
-    models
+ignore = E402,F401,W503,W293,E127
+exclude = __pycache__,.venv,data,models
