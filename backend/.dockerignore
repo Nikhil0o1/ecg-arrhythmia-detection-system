@@ -1,0 +1,38 @@
+# ── Python ────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ── Data (large / not needed for inference) ───────────────────
+data/raw/
+data/processed/
+
+# ── Training artifacts ────────────────────────────────────────
+evaluation/artifacts/
+evaluation/reports/
+training/__pycache__/
+training/training.log
+run_training.py
+
+# ── Version control & IDE ────────────────────────────────────
+.git/
+.gitignore
+.github/
+.vscode/
+.idea/
+
+# ── Docker (avoid recursive context) ─────────────────────────
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# ── Misc ──────────────────────────────────────────────────────
+*.md
+*.txt
+!requirements.txt
+!requirements.docker.txt
+LICENSE
