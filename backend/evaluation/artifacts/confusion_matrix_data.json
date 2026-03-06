@@ -1,0 +1,22 @@
+{
+  "matrix": [
+    [
+      1304,
+      92
+    ],
+    [
+      249,
+      1395
+    ]
+  ],
+  "labels": [
+    "Normal",
+    "Arrhythmia"
+  ],
+  "tn": 1304,
+  "fp": 92,
+  "fn": 249,
+  "tp": 1395,
+  "total": 3040,
+  "model_name": "IndustryCNN"
+}
