@@ -13,10 +13,6 @@ venv/
 backend/data/raw/
 backend/data/processed/
 
-# Model artifacts
-backend/models/saved_models/
-backend/evaluation/artifacts/
-
 # Logs
 *.log
 
