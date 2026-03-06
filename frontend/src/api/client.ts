@@ -6,11 +6,17 @@ import type {
 } from "@/types";
 
 /* ──────────────────────────────────────────────────────────────
-   Axios instance — all requests go through the Vite dev proxy
-   that rewrites /api → http://localhost:8000
+   Axios instance — 
+   - Dev: Uses Vite proxy (/api) → localhost:8000
+   - Prod: Uses VITE_API_URL environment variable (e.g., Render backend)
    ────────────────────────────────────────────────────────────── */
+const getBaseURL = () => {
+  const apiUrl = import.meta.env.VITE_API_URL;
+  return apiUrl || "/api"; // Default to proxy path for local dev
+};
+
 const api = axios.create({
-  baseURL: "/api",
+  baseURL: getBaseURL(),
   timeout: 30_000,
   headers: { "Content-Type": "application/json" },
 });

@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 
 from inference.predictor import ECGPredictor
@@ -53,6 +54,18 @@ app = FastAPI(
     title="ECG Arrhythmia Detection API",
     version="2.0.0",
     lifespan=lifespan,
+)
+
+# Enable CORS for frontend communication
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",  # Local development
+        "https://ecg-frontend.onrender.com",  # Render deployment
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
