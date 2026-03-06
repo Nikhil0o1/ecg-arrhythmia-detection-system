@@ -1,0 +1,16 @@
+{
+  "buildCommand": "cd frontend && npm run build",
+  "outputDirectory": "frontend/dist",
+  "framework": "vite",
+  "env": {
+    "VITE_API_URL": {
+      "default": "https://ecg-backend.onrender.com/api"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://ecg-backend.onrender.com/api/:path*"
+    }
+  ]
+}
