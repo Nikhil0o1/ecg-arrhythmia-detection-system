@@ -11,10 +11,12 @@ import type {
 } from "@/types/ecg";
 
 /* ──────────────────────────────────────────────────────────────
-   Axios instance — Vite proxy rewrites /api → backend
+   Axios instance —
+   - Dev: Uses Vite proxy (/api) → localhost:8000
+   - Prod: Uses VITE_API_URL environment variable (Render backend)
    ────────────────────────────────────────────────────────────── */
 const client = axios.create({
-  baseURL: "/api",
+  baseURL: import.meta.env.VITE_API_URL || "/api",
   timeout: 30_000,
   headers: { "Content-Type": "application/json" },
 });

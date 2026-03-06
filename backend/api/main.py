@@ -59,16 +59,7 @@ app = FastAPI(
 # Enable CORS for frontend communication
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        # Local development
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        # Possible Render frontend domains (include variants created by Render)
-        "https://ecg-frontend.onrender.com",
-        "https://ecg-arrhythmia-detection-system.onrender.com",
-        "https://ecg-arrhythmia-detection-system-1.onrender.com",
-        "https://ecg-arrhythmia-detection-system-sj19.onrender.com",
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
