@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 """
-run_training.py – Single entry point for the ECG Arrhythmia Detection pipeline.
+run_training.py — Single entry point for the ECG Arrhythmia Detection pipeline.
 
 Orchestrates:
-    1. Dataset download (PTB-XL from PhysioNet)
-    2. Preprocessing & caching
-    3. Stratified splitting
-    4. Training of all three models (CNN1D, LSTMClassifier, TransformerClassifier)
-    5. Evaluation on the held-out test set
-    6. Saving comparison metrics
+    1. Verify dataset exists
+    2. Build manifest & patient-wise splits
+    3. Train IndustryCNN (residual 1-D CNN, 12-lead)
+    4. Evaluate on test set
+    5. Save metrics & plots
+    6. Generate demo samples
+    7. Exit cleanly
 
 Usage:
     cd backend/
@@ -20,34 +21,101 @@ import os
 import sys
 import time
 
+import numpy as np
+
 # Ensure the backend directory is on sys.path so `training` is importable
 _BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 if _BACKEND_DIR not in sys.path:
     sys.path.insert(0, _BACKEND_DIR)
 
-from training.config import (
-    DATA_CFG,
-    MODEL_NAMES,
-    TRAIN_CFG,
-)
-from training.data_loader import build_dataloaders, stratified_split
-from training.evaluate import evaluate_model, save_comparison_report
+from training.config import DEMO_DIR, PTBXL_DIR, TRAIN_CFG
+from training.data_loader import build_dataloaders, patient_wise_split
+from training.evaluate import evaluate_model
 from training.models import build_model
-from training.preprocessing import (
-    download_ptbxl,
-    load_and_preprocess,
-    load_processed,
-    processed_data_exists,
-    save_processed,
-)
+from training.preprocessing import build_manifest, load_and_preprocess_record
 from training.train import train_model
 from training.utils import (
-    compute_class_weights,
+    compute_pos_weight,
     ensure_directories,
     resolve_device,
     set_seed,
     setup_logging,
 )
+
+
+def _verify_dataset(dataset_dir: str) -> None:
+    """Verify the PTB-XL dataset exists at the expected path."""
+    csv_path = os.path.join(dataset_dir, "ptbxl_database.csv")
+    records_dir = os.path.join(dataset_dir, "records100")
+    if not os.path.isfile(csv_path):
+        raise FileNotFoundError(
+            f"ptbxl_database.csv not found at {csv_path}. "
+            f"Ensure PTB-XL is downloaded to {dataset_dir}"
+        )
+    if not os.path.isdir(records_dir):
+        raise FileNotFoundError(
+            f"records100/ folder not found at {records_dir}. "
+            f"Ensure PTB-XL is fully extracted."
+        )
+
+
+def _generate_demo_samples(
+    model,
+    test_df,
+    device,
+    dataset_dir: str,
+    demo_dir: str,
+    logger: logging.Logger,
+) -> None:
+    """Find high-confidence positive and negative samples from the test set."""
+    import torch
+
+    model.eval()
+    os.makedirs(demo_dir, exist_ok=True)
+
+    best_pos_prob = 0.0
+    best_pos_signal = None
+    best_neg_prob = 1.0
+    best_neg_signal = None
+
+    with torch.no_grad():
+        for _, row in test_df.iterrows():
+            try:
+                signal = load_and_preprocess_record(row["filename_lr"], dataset_dir)
+            except Exception:
+                continue
+
+            # signal: (1000, 12)
+            tensor = torch.from_numpy(signal.T).unsqueeze(0).to(device)  # (1, 12, 1000)
+            logit = model(tensor).squeeze()
+            prob = torch.sigmoid(logit).item()
+
+            if prob > 0.9 and prob > best_pos_prob:
+                best_pos_prob = prob
+                best_pos_signal = signal.copy()  # (1000, 12)
+
+            if prob < 0.1 and prob < best_neg_prob:
+                best_neg_prob = prob
+                best_neg_signal = signal.copy()
+
+            # Early exit if we found good examples
+            if best_pos_signal is not None and best_neg_signal is not None:
+                if best_pos_prob > 0.95 and best_neg_prob < 0.05:
+                    break
+
+    if best_pos_signal is not None:
+        path = os.path.join(demo_dir, "demo_positive.npy")
+        np.save(path, best_pos_signal)
+        logger.info("Saved demo positive (prob=%.4f) -> %s", best_pos_prob, path)
+    else:
+        logger.warning("Could not find a high-confidence positive sample (prob > 0.9)")
+
+    if best_neg_signal is not None:
+        path = os.path.join(demo_dir, "demo_negative.npy")
+        np.save(path, best_neg_signal)
+        logger.info("Saved demo negative (prob=%.4f) -> %s", best_neg_prob, path)
+    else:
+        logger.warning("Could not find a high-confidence negative sample (prob < 0.1)")
 
 
 def main() -> None:
@@ -60,96 +128,83 @@ def main() -> None:
     device = resolve_device(TRAIN_CFG.device)
 
     logger.info("=" * 70)
-    logger.info("ECG Arrhythmia Detection Pipeline – START")
+    logger.info("ECG Arrhythmia Detection Pipeline — START")
     logger.info("=" * 70)
     logger.info("Device: %s", device)
     pipeline_start = time.time()
 
-    # ── 1. Download dataset ───────────────────────────────────
-    logger.info("─" * 70)
-    logger.info("STEP 1 / 5 : Download PTB-XL dataset")
-    logger.info("─" * 70)
-    dataset_dir = download_ptbxl()
+    # ── 1. Verify dataset ─────────────────────────────────────
+    logger.info("-" * 70)
+    logger.info("STEP 1 / 6 : Verify PTB-XL dataset")
+    logger.info("-" * 70)
+    _verify_dataset(PTBXL_DIR)
+    logger.info("Dataset verified at %s", PTBXL_DIR)
 
-    # ── 2. Preprocess (or load cached) ────────────────────────
-    logger.info("─" * 70)
-    logger.info("STEP 2 / 5 : Preprocess ECG signals")
-    logger.info("─" * 70)
-    if processed_data_exists():
-        logger.info("Found cached processed data – loading from disk.")
-        X, y = load_processed()
-    else:
-        X, y = load_and_preprocess(dataset_dir)
-        save_processed(X, y)
+    # ── 2. Build manifest & patient-wise split ────────────────
+    logger.info("-" * 70)
+    logger.info("STEP 2 / 6 : Build manifest & patient-wise split")
+    logger.info("-" * 70)
+    manifest = build_manifest(PTBXL_DIR)
+    train_df, val_df, test_df = patient_wise_split(manifest)
 
-    # ── 3. Split & build loaders ──────────────────────────────
-    logger.info("─" * 70)
-    logger.info("STEP 3 / 5 : Stratified split & DataLoader construction")
-    logger.info("─" * 70)
-    X_train, y_train, X_val, y_val, X_test, y_test = stratified_split(X, y)
-    loaders = build_dataloaders(X_train, y_train, X_val, y_val, X_test, y_test)
+    # Build DataLoaders (lazy loading)
+    loaders = build_dataloaders(train_df, val_df, test_df, dataset_dir=PTBXL_DIR)
 
-    pos_weight = compute_class_weights(y_train)
-    logger.info("Positive class weight (pos_weight): %.4f", pos_weight.item())
+    # Compute pos_weight from TRAIN split only
+    train_labels = train_df["label"].values
+    pos_weight = compute_pos_weight(train_labels)
+    logger.info("pos_weight (from train): %.4f", pos_weight.item())
 
-    # ── 4. Train all models ───────────────────────────────────
-    logger.info("─" * 70)
-    logger.info("STEP 4 / 5 : Train models")
-    logger.info("─" * 70)
+    # ── 3. Build & train model ────────────────────────────────
+    logger.info("-" * 70)
+    logger.info("STEP 3 / 6 : Train IndustryCNN")
+    logger.info("-" * 70)
+    model = build_model("IndustryCNN")
+    n_params = sum(p.numel() for p in model.parameters())
+    logger.info("Model parameters: %s", f"{n_params:,}")
 
-    trained_models = {}
-    histories = {}
+    history = train_model(
+        model=model,
+        loaders=loaders,
+        pos_weight=pos_weight,
+        device=device,
+        model_name="IndustryCNN",
+    )
 
-    for model_name in MODEL_NAMES:
-        logger.info("\n>>> Building model: %s", model_name)
-        model = build_model(model_name)
-        n_params = sum(p.numel() for p in model.parameters())
-        logger.info("  Parameters: %s", f"{n_params:,}")
+    # ── 4. Evaluate on test set ───────────────────────────────
+    logger.info("-" * 70)
+    logger.info("STEP 4 / 6 : Evaluate on test set")
+    logger.info("-" * 70)
+    metrics, y_true, y_prob = evaluate_model(
+        model=model,
+        loader=loaders["test"],
+        device=device,
+    )
 
-        history = train_model(
-            model=model,
-            loaders=loaders,
-            pos_weight=pos_weight,
-            device=device,
-            model_name=model_name,
-        )
-        trained_models[model_name] = model
-        histories[model_name] = history
+    # ── 5. Generate demo samples ──────────────────────────────
+    logger.info("-" * 70)
+    logger.info("STEP 5 / 6 : Generate demo samples from test set")
+    logger.info("-" * 70)
+    _generate_demo_samples(
+        model=model,
+        test_df=test_df,
+        device=device,
+        dataset_dir=PTBXL_DIR,
+        demo_dir=DEMO_DIR,
+        logger=logger,
+    )
 
-    # ── 5. Evaluate all models ────────────────────────────────
-    logger.info("─" * 70)
-    logger.info("STEP 5 / 5 : Evaluate on test set")
-    logger.info("─" * 70)
-
-    all_metrics = {}
-    for model_name, model in trained_models.items():
-        logger.info("\n>>> Evaluating: %s", model_name)
-        metrics = evaluate_model(
-            model=model,
-            loader=loaders["test"],
-            device=device,
-            model_name=model_name,
-        )
-        all_metrics[model_name] = metrics
-
-    # ── 6. Save comparison report ─────────────────────────────
-    save_comparison_report(all_metrics)
-
-    # ── Summary ───────────────────────────────────────────────
+    # ── 6. Summary ────────────────────────────────────────────
     elapsed = time.time() - pipeline_start
     logger.info("=" * 70)
     logger.info("Pipeline complete in %.1f s", elapsed)
     logger.info("=" * 70)
 
-    # Print comparison table
-    header = f"{'Model':<25} {'Acc':>7} {'Prec':>7} {'Rec':>7} {'F1':>7} {'AUC':>7}"
+    header = f"{'Metric':<15} {'Value':>10}"
     logger.info(header)
     logger.info("-" * len(header))
-    for name, m in all_metrics.items():
-        logger.info(
-            f"{name:<25} {m['accuracy']:>7.4f} {m['precision']:>7.4f} "
-            f"{m['recall']:>7.4f} {m['f1_score']:>7.4f} {m['roc_auc']:>7.4f}"
-        )
+    for k, v in metrics.items():
+        logger.info(f"{k:<15} {v:>10.4f}")
     logger.info("=" * 70)
 
 

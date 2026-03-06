@@ -1,245 +1,146 @@
 """
 Model definitions for ECG Arrhythmia Detection.
 
-Three architectures for binary classification of 10-second single-lead ECG:
-    1. CNN1D          – 1-D Convolutional Neural Network
-    2. LSTMClassifier – Bi-directional LSTM
-    3. TransformerClassifier – Lightweight Transformer encoder
+IndustryCNN – Deep 1-D Residual Convolutional Neural Network for
+binary classification of 10-second 12-lead ECG recordings.
 
-All models:
-    • Accept input of shape (batch_size, 1000, 1)
-    • Output a single logit (binary classification via BCEWithLogitsLoss)
+Architecture:
+    Conv1D(12 → 64) + BN + ReLU
+    4 × ResidualBlock (double conv with skip connection)
+    Dropout(0.3)
+    Global Average Pooling
+    Linear(→ 1)
+
+Input:  (batch, 12, 1000) — channel-first 12-lead ECG
+Output: (batch, 1)        — logit for BCEWithLogitsLoss
 """
-
-import math
-from typing import List
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from training.config import MODEL_CFG
 
 
-# ══════════════════════════════════════════════════════════════
-# 1. 1-D CNN
-# ══════════════════════════════════════════════════════════════
-class CNN1D(nn.Module):
+class ResidualBlock(nn.Module):
+    """1-D residual block: two convolutions with skip connection.
+
+    If in_channels != out_channels, a 1×1 convolution is used for the
+    shortcut to match dimensions.
     """
-    Multi-layer 1-D convolutional network with batch-norm, ReLU, max-pool,
-    and a final fully-connected classifier head.
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int = 7,
+        dropout: float = 0.3,
+    ) -> None:
+        super().__init__()
+        padding = kernel_size // 2
+
+        self.conv1 = nn.Conv1d(in_channels, out_channels, kernel_size, padding=padding)
+        self.bn1 = nn.BatchNorm1d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
+
+        self.conv2 = nn.Conv1d(out_channels, out_channels, kernel_size, padding=padding)
+        self.bn2 = nn.BatchNorm1d(out_channels)
+
+        self.dropout = nn.Dropout(dropout)
+
+        # Shortcut projection
+        if in_channels != out_channels:
+            self.shortcut = nn.Sequential(
+                nn.Conv1d(in_channels, out_channels, kernel_size=1),
+                nn.BatchNorm1d(out_channels),
+            )
+        else:
+            self.shortcut = nn.Identity()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        residual = self.shortcut(x)
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+        out = self.dropout(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        out = out + residual
+        out = self.relu(out)
+        return out
+
+
+class IndustryCNN(nn.Module):
+    """Deep 1-D Residual CNN for 12-lead ECG binary classification.
+
+    Fits comfortably in 4 GB VRAM with batch_size=16.
     """
 
     def __init__(
         self,
         input_channels: int = MODEL_CFG.input_channels,
-        input_length: int = MODEL_CFG.input_length,
-        conv_channels: List[int] = None,
-        kernel_sizes: List[int] = None,
-        dropout: float = MODEL_CFG.cnn_dropout,
+        initial_filters: int = MODEL_CFG.initial_filters,
+        num_res_blocks: int = MODEL_CFG.num_res_blocks,
+        dropout: float = MODEL_CFG.dropout,
         num_classes: int = MODEL_CFG.num_classes,
     ) -> None:
         super().__init__()
-        if conv_channels is None:
-            conv_channels = MODEL_CFG.cnn_channels
-        if kernel_sizes is None:
-            kernel_sizes = MODEL_CFG.cnn_kernel_sizes
 
-        layers: list = []
-        in_ch = input_channels
-        for out_ch, ks in zip(conv_channels, kernel_sizes):
-            layers.extend([
-                nn.Conv1d(in_ch, out_ch, kernel_size=ks, padding=ks // 2),
-                nn.BatchNorm1d(out_ch),
-                nn.ReLU(inplace=True),
-                nn.MaxPool1d(kernel_size=2, stride=2),
-                nn.Dropout(dropout),
-            ])
-            in_ch = out_ch
-
-        self.feature_extractor = nn.Sequential(*layers)
-
-        # Calculate flattened dimension: each MaxPool halves the length
-        feat_len = input_length
-        for _ in conv_channels:
-            feat_len = feat_len // 2
-
-        self.classifier = nn.Sequential(
-            nn.Linear(in_ch * feat_len, 128),
+        # ── Stem ──
+        self.stem = nn.Sequential(
+            nn.Conv1d(input_channels, initial_filters, kernel_size=15, padding=7),
+            nn.BatchNorm1d(initial_filters),
             nn.ReLU(inplace=True),
-            nn.Dropout(dropout),
-            nn.Linear(128, num_classes),
         )
+
+        # ── Residual blocks ──
+        # Channel progression: 64 → 64 → 128 → 128 → 256
+        channels = [initial_filters]
+        for i in range(num_res_blocks):
+            if i % 2 == 1:
+                channels.append(channels[-1] * 2)
+            else:
+                channels.append(channels[-1])
+
+        blocks = []
+        for i in range(num_res_blocks):
+            blocks.append(
+                ResidualBlock(
+                    in_channels=channels[i],
+                    out_channels=channels[i + 1],
+                    kernel_size=7,
+                    dropout=dropout,
+                )
+            )
+            # Downsample after each block to reduce sequence length
+            blocks.append(nn.MaxPool1d(kernel_size=2, stride=2))
+
+        self.res_blocks = nn.Sequential(*blocks)
+
+        self.dropout = nn.Dropout(dropout)
+
+        # ── Global Average Pooling + Classifier ──
+        self.classifier = nn.Linear(channels[-1], num_classes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Parameters
         ----------
-        x : (batch, seq_len=1000, channels=1)
+        x : (batch, 12, 1000) — channel-first
 
         Returns
         -------
         logits : (batch, 1)
         """
-        # Conv1d expects (batch, channels, length)
-        x = x.permute(0, 2, 1)
-        x = self.feature_extractor(x)
-        x = x.flatten(start_dim=1)
-        return self.classifier(x)
+        x = self.stem(x)
+        x = self.res_blocks(x)
+        x = self.dropout(x)
 
+        # Global Average Pooling over the time dimension
+        x = x.mean(dim=-1)  # (batch, C)
 
-# ══════════════════════════════════════════════════════════════
-# 2. LSTM Classifier
-# ══════════════════════════════════════════════════════════════
-class LSTMClassifier(nn.Module):
-    """
-    Bi-directional LSTM with attention pooling over time-steps.
-    """
-
-    def __init__(
-        self,
-        input_channels: int = MODEL_CFG.input_channels,
-        hidden_size: int = MODEL_CFG.lstm_hidden_size,
-        num_layers: int = MODEL_CFG.lstm_num_layers,
-        dropout: float = MODEL_CFG.lstm_dropout,
-        bidirectional: bool = MODEL_CFG.lstm_bidirectional,
-        num_classes: int = MODEL_CFG.num_classes,
-    ) -> None:
-        super().__init__()
-        self.lstm = nn.LSTM(
-            input_size=input_channels,
-            hidden_size=hidden_size,
-            num_layers=num_layers,
-            batch_first=True,
-            dropout=dropout if num_layers > 1 else 0.0,
-            bidirectional=bidirectional,
-        )
-        direction_factor = 2 if bidirectional else 1
-        lstm_out_dim = hidden_size * direction_factor
-
-        # Attention
-        self.attention = nn.Sequential(
-            nn.Linear(lstm_out_dim, 64),
-            nn.Tanh(),
-            nn.Linear(64, 1),
-        )
-
-        self.classifier = nn.Sequential(
-            nn.LayerNorm(lstm_out_dim),
-            nn.Linear(lstm_out_dim, 64),
-            nn.ReLU(inplace=True),
-            nn.Dropout(dropout),
-            nn.Linear(64, num_classes),
-        )
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Parameters
-        ----------
-        x : (batch, seq_len=1000, 1)
-
-        Returns
-        -------
-        logits : (batch, 1)
-        """
-        output, _ = self.lstm(x)  # (batch, seq, lstm_out_dim)
-
-        # Attention pooling
-        attn_weights = self.attention(output)          # (batch, seq, 1)
-        attn_weights = F.softmax(attn_weights, dim=1)  # normalise over time
-        context = (output * attn_weights).sum(dim=1)   # (batch, lstm_out_dim)
-
-        return self.classifier(context)
-
-
-# ══════════════════════════════════════════════════════════════
-# 3. Lightweight Transformer Classifier
-# ══════════════════════════════════════════════════════════════
-class _PositionalEncoding(nn.Module):
-    """Fixed sinusoidal positional encoding."""
-
-    def __init__(self, d_model: int, max_len: int = 5000, dropout: float = 0.1) -> None:
-        super().__init__()
-        self.dropout = nn.Dropout(p=dropout)
-
-        pe = torch.zeros(max_len, d_model)
-        position = torch.arange(0, max_len, dtype=torch.float32).unsqueeze(1)
-        div_term = torch.exp(
-            torch.arange(0, d_model, 2, dtype=torch.float32)
-            * (-math.log(10000.0) / d_model)
-        )
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0)  # (1, max_len, d_model)
-        self.register_buffer("pe", pe)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = x + self.pe[:, : x.size(1)]
-        return self.dropout(x)
-
-
-class TransformerClassifier(nn.Module):
-    """
-    Lightweight Transformer encoder for 1-D ECG time-series.
-
-    Projects the input to d_model, adds positional encoding,
-    passes through Transformer encoder layers, then uses CLS-style
-    mean pooling before the classification head.
-    """
-
-    def __init__(
-        self,
-        input_channels: int = MODEL_CFG.input_channels,
-        d_model: int = MODEL_CFG.transformer_d_model,
-        nhead: int = MODEL_CFG.transformer_nhead,
-        num_layers: int = MODEL_CFG.transformer_num_layers,
-        dim_feedforward: int = MODEL_CFG.transformer_dim_feedforward,
-        dropout: float = MODEL_CFG.transformer_dropout,
-        num_classes: int = MODEL_CFG.num_classes,
-        input_length: int = MODEL_CFG.input_length,
-    ) -> None:
-        super().__init__()
-
-        self.input_proj = nn.Linear(input_channels, d_model)
-        self.pos_encoder = _PositionalEncoding(d_model, max_len=input_length, dropout=dropout)
-
-        encoder_layer = nn.TransformerEncoderLayer(
-            d_model=d_model,
-            nhead=nhead,
-            dim_feedforward=dim_feedforward,
-            dropout=dropout,
-            batch_first=True,
-            activation="gelu",
-        )
-        self.transformer_encoder = nn.TransformerEncoder(
-            encoder_layer,
-            num_layers=num_layers,
-        )
-
-        self.classifier = nn.Sequential(
-            nn.LayerNorm(d_model),
-            nn.Linear(d_model, 64),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(64, num_classes),
-        )
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Parameters
-        ----------
-        x : (batch, seq_len=1000, 1)
-
-        Returns
-        -------
-        logits : (batch, 1)
-        """
-        x = self.input_proj(x)            # (batch, seq, d_model)
-        x = self.pos_encoder(x)
-        x = self.transformer_encoder(x)   # (batch, seq, d_model)
-
-        # Global average pooling over the time dimension
-        x = x.mean(dim=1)                 # (batch, d_model)
         return self.classifier(x)
 
 
@@ -247,14 +148,14 @@ class TransformerClassifier(nn.Module):
 # Factory
 # ──────────────────────────────────────────────────────────────
 MODEL_REGISTRY = {
-    "CNN1D": CNN1D,
-    "LSTMClassifier": LSTMClassifier,
-    "TransformerClassifier": TransformerClassifier,
+    "IndustryCNN": IndustryCNN,
 }
 
 
 def build_model(name: str, **kwargs) -> nn.Module:
     """Instantiate a model by its registered name."""
     if name not in MODEL_REGISTRY:
-        raise ValueError(f"Unknown model '{name}'. Available: {list(MODEL_REGISTRY.keys())}")
+        raise ValueError(
+            f"Unknown model '{name}'. Available: {list(MODEL_REGISTRY.keys())}"
+        )
     return MODEL_REGISTRY[name](**kwargs)

@@ -3,9 +3,10 @@ Utility helpers for the ECG Arrhythmia Detection pipeline.
 
 Provides:
     - Seed setting for full reproducibility
-    - Logging setup
+    - Logging setup (file + console, no print statements)
     - Device resolution
     - Directory creation helpers
+    - Class weight computation
 """
 
 import logging
@@ -18,6 +19,7 @@ import torch
 
 from training.config import (
     ARTIFACTS_DIR,
+    DEMO_DIR,
     PROCESSED_DATA_DIR,
     RAW_DATA_DIR,
     REPORTS_DIR,
@@ -32,7 +34,6 @@ def set_seed(seed: int = 42) -> None:
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-    # Deterministic behaviour (may reduce performance)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     os.environ["PYTHONHASHSEED"] = str(seed)
@@ -46,10 +47,9 @@ def resolve_device(preference: str = "auto") -> torch.device:
 
 
 def setup_logging(log_path: Optional[str] = None) -> logging.Logger:
-    """
-    Configure the root logger for the pipeline.
+    """Configure the root logger for the pipeline.
 
-    Logs are written to both the console and a file.
+    Logs are written to both the console and training.log.
     """
     if log_path is None:
         log_path = TRAINING_LOG_PATH
@@ -91,13 +91,13 @@ def ensure_directories() -> None:
         SAVED_MODELS_DIR,
         ARTIFACTS_DIR,
         REPORTS_DIR,
+        DEMO_DIR,
     ]:
         os.makedirs(d, exist_ok=True)
 
 
-def compute_class_weights(labels: np.ndarray) -> torch.Tensor:
-    """
-    Compute inverse-frequency class weights for binary labels.
+def compute_pos_weight(labels: np.ndarray) -> torch.Tensor:
+    """Compute pos_weight = #negative / #positive from training labels.
 
     Parameters
     ----------
@@ -109,9 +109,9 @@ def compute_class_weights(labels: np.ndarray) -> torch.Tensor:
     torch.Tensor
         Scalar weight for the positive class (used with BCEWithLogitsLoss pos_weight).
     """
-    n_pos = labels.sum()
+    n_pos = int(labels.sum())
     n_neg = len(labels) - n_pos
     if n_pos == 0:
-        return torch.tensor(1.0)
+        return torch.tensor(1.0, dtype=torch.float32)
     pos_weight = n_neg / n_pos
     return torch.tensor(pos_weight, dtype=torch.float32)

@@ -1,18 +1,13 @@
 """
-FastAPI application for ECG Arrhythmia Detection inference.
-
-Endpoints
----------
-GET  /health       – Service health check.
-POST /predict      – Predict from a JSON array of 1000 floats.
-POST /predict-file – Predict from an uploaded ``.npy`` file.
-POST /simulate     – Real-time streaming simulation over a 10-second signal.
+FastAPI application for ECG Arrhythmia Detection inference (12-lead version).
 """
 
 import io
+import json
 import logging
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -22,68 +17,62 @@ from inference.predictor import ECGPredictor
 
 logger = logging.getLogger("ecg_pipeline.api")
 
-# ──────────────────────────────────────────────────────────────
-# Singleton predictor (loaded once at startup)
-# ──────────────────────────────────────────────────────────────
+# --------------------------------------------------
+# Global predictor (loaded once)
+# --------------------------------------------------
 _predictor: ECGPredictor | None = None
 
-_SIGNAL_LENGTH = 1000  # 10 s @ 100 Hz
-_CHUNK_SIZE = 100      # sliding-window chunk for simulation
+_SIGNAL_LENGTH = 1000
+_NUM_LEADS = 12
+_CHUNK_SIZE = 100
 
 
 def _get_predictor() -> ECGPredictor:
-    """Return the global predictor; raise 503 if not yet loaded."""
     if _predictor is None:
         raise HTTPException(
             status_code=503,
-            detail="Model not loaded yet. Please try again shortly.",
+            detail="Model not loaded yet."
         )
     return _predictor
 
 
-# ──────────────────────────────────────────────────────────────
-# Lifespan – lazy model loading
-# ──────────────────────────────────────────────────────────────
+# --------------------------------------------------
+# Lifespan
+# --------------------------------------------------
 @asynccontextmanager
-async def _lifespan(app: FastAPI):
+async def lifespan(app: FastAPI):
     global _predictor
-    logger.info("Loading ECG model at startup …")
-
-    try:
-        _predictor = ECGPredictor()
-        logger.info("Model ready on device=%s", _predictor.device_name)
-    except Exception:
-        logger.exception("Model failed to load. API will start without model.")
-        _predictor = None
-
+    logger.info("Loading IndustryCNN model...")
+    _predictor = ECGPredictor(model_name="IndustryCNN")
+    logger.info("Model loaded on device=%s", _predictor.device_name)
     yield
+    logger.info("Shutting down.")
 
-    logger.info("Shutting down ECG inference service.")
 
-# ──────────────────────────────────────────────────────────────
-# App
-# ──────────────────────────────────────────────────────────────
 app = FastAPI(
     title="ECG Arrhythmia Detection API",
-    version="1.0.0",
-    lifespan=_lifespan,
+    version="2.0.0",
+    lifespan=lifespan,
 )
 
 
-# ──────────────────────────────────────────────────────────────
+# --------------------------------------------------
 # Schemas
-# ──────────────────────────────────────────────────────────────
+# --------------------------------------------------
 class PredictRequest(BaseModel):
-    signal: List[float]
+    signal: List[List[float]]
 
     @field_validator("signal")
     @classmethod
-    def validate_signal_length(cls, v: List[float]) -> List[float]:
+    def validate_shape(cls, v):
         if len(v) != _SIGNAL_LENGTH:
-            raise ValueError(
-                f"Signal must contain exactly {_SIGNAL_LENGTH} samples, "
-                f"got {len(v)}."
-            )
+            raise ValueError(f"Signal must have {_SIGNAL_LENGTH} time steps.")
+
+        for row in v:
+            if len(row) != _NUM_LEADS:
+                raise ValueError(
+                    f"Each time step must contain {_NUM_LEADS} leads."
+                )
         return v
 
 
@@ -98,165 +87,234 @@ class HealthResponse(BaseModel):
     device: str
 
 
-class TimelineEntry(BaseModel):
-    chunk_index: int
-    start_sample: int
-    end_sample: int
-    probability: float
-    prediction: int
-    confidence: float
-
-
-class SimulateResponse(BaseModel):
-    timeline_predictions: List[TimelineEntry]
-    final_prediction: PredictResponse
-
-
 class SimulateRequest(BaseModel):
-    signal: List[float]
+    signal: List[List[float]]
 
     @field_validator("signal")
     @classmethod
-    def validate_signal_length(cls, v: List[float]) -> List[float]:
+    def validate_shape(cls, v):
         if len(v) != _SIGNAL_LENGTH:
-            raise ValueError(
-                f"Signal must contain exactly {_SIGNAL_LENGTH} samples, "
-                f"got {len(v)}."
-            )
+            raise ValueError(f"Signal must have {_SIGNAL_LENGTH} time steps.")
+
+        for row in v:
+            if len(row) != _NUM_LEADS:
+                raise ValueError(
+                    f"Each time step must contain {_NUM_LEADS} leads."
+                )
         return v
 
 
-# ──────────────────────────────────────────────────────────────
+class ModelMetricsResponse(BaseModel):
+    accuracy: float
+    precision: float
+    recall: float
+    f1_score: float
+    roc_auc: float
+    sensitivity: Optional[float] = None
+    specificity: Optional[float] = None
+
+
+class AllMetricsResponse(BaseModel):
+    primary: ModelMetricsResponse
+    primary_model_name: str
+    comparison: Dict[str, ModelMetricsResponse]
+
+
+class ROCCurveResponse(BaseModel):
+    fpr: List[float]
+    tpr: List[float]
+    auc: float
+    model_name: str
+    n_samples: int
+
+
+class ConfusionMatrixResponse(BaseModel):
+    matrix: List[List[int]]
+    labels: List[str]
+    tn: int
+    fp: int
+    fn: int
+    tp: int
+    total: int
+    model_name: str
+
+
+class PRCurveResponse(BaseModel):
+    precision: List[float]
+    recall: List[float]
+    auc: float
+    model_name: str
+
+
+_ARTIFACTS_DIR = Path(__file__).resolve().parent.parent / "evaluation" / "artifacts"
+
+
+# --------------------------------------------------
 # Endpoints
-# ──────────────────────────────────────────────────────────────
+# --------------------------------------------------
 @app.get("/health", response_model=HealthResponse)
-async def health() -> Dict[str, str]:
-    """Service health check."""
+async def health():
     predictor = _get_predictor()
     return {"status": "ok", "device": predictor.device_name}
 
 
+@app.get("/metrics", response_model=AllMetricsResponse)
+async def metrics():
+    """Return real evaluation metrics from training artifacts."""
+    try:
+        primary_path = _ARTIFACTS_DIR / "test_metrics.json"
+        comparison_path = _ARTIFACTS_DIR / "comparison_metrics.json"
+
+        if not primary_path.exists():
+            raise HTTPException(status_code=404, detail="Primary metrics not found.")
+
+        with open(primary_path) as f:
+            primary_data = json.load(f)
+
+        comparison_data: Dict[str, Any] = {}
+        if comparison_path.exists():
+            with open(comparison_path) as f:
+                comparison_data = json.load(f)
+
+        return {
+            "primary": primary_data,
+            "primary_model_name": "IndustryCNN",
+            "comparison": comparison_data,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Failed to load metrics")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/roc-curve", response_model=ROCCurveResponse)
+async def roc_curve_data():
+    """Return real ROC curve data points from training evaluation."""
+    path = _ARTIFACTS_DIR / "roc_curve_data.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="ROC curve data not found.")
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except Exception as e:
+        logger.exception("Failed to load ROC curve data")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/confusion-matrix", response_model=ConfusionMatrixResponse)
+async def confusion_matrix_data():
+    """Return real confusion matrix from training evaluation."""
+    path = _ARTIFACTS_DIR / "confusion_matrix_data.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Confusion matrix data not found.")
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except Exception as e:
+        logger.exception("Failed to load confusion matrix data")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/pr-curve", response_model=PRCurveResponse)
+async def pr_curve_data():
+    """Return real Precision-Recall curve data from training evaluation."""
+    path = _ARTIFACTS_DIR / "pr_curve_data.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="PR curve data not found.")
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except Exception as e:
+        logger.exception("Failed to load PR curve data")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/predict", response_model=PredictResponse)
-async def predict(body: PredictRequest) -> Dict[str, Any]:
-    """Run inference on a JSON-encoded 1000-sample ECG signal."""
+async def predict(body: PredictRequest):
     predictor = _get_predictor()
+
     try:
         signal = np.array(body.signal, dtype=np.float64)
+
+        if signal.shape != (_SIGNAL_LENGTH, _NUM_LEADS):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Expected shape (1000, 12), got {signal.shape}"
+            )
+
         result = predictor.predict(signal)
-        logger.info(
-            "Prediction: prob=%.4f pred=%d conf=%.4f",
-            result["probability"],
-            result["prediction"],
-            result["confidence"],
-        )
+
         return result
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:
+
+    except Exception as e:
         logger.exception("Prediction failed")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/predict-file", response_model=PredictResponse)
-async def predict_file(
-    file: UploadFile = File(..., description="A .npy file with shape (1000,)"),
-) -> Dict[str, Any]:
-    """Run inference on an uploaded ``.npy`` file."""
+async def predict_file(file: UploadFile = File(...)):
     predictor = _get_predictor()
 
-    if not file.filename or not file.filename.endswith(".npy"):
+    if not file.filename.endswith(".npy"):
         raise HTTPException(
             status_code=400,
-            detail="Only .npy files are accepted.",
+            detail="Only .npy files allowed."
         )
 
     try:
         contents = await file.read()
         signal = np.load(io.BytesIO(contents))
-    except Exception as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Could not read .npy file: {exc}",
-        ) from exc
 
-    signal = np.squeeze(signal)
-    if signal.shape != (_SIGNAL_LENGTH,):
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Expected shape ({_SIGNAL_LENGTH},), "
-                f"got {signal.shape}."
-            ),
-        )
+        # Accept both (1000,12) and (12,1000)
+        if signal.shape == (_NUM_LEADS, _SIGNAL_LENGTH):
+            signal = signal.T
 
-    try:
-        result = predictor.predict(signal)
-        logger.info(
-            "Prediction (file): prob=%.4f pred=%d conf=%.4f",
-            result["probability"],
-            result["prediction"],
-            result["confidence"],
-        )
-        return result
-    except Exception as exc:
-        logger.exception("Prediction failed (file upload)")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-
-
-@app.post("/simulate", response_model=SimulateResponse)
-async def simulate(body: SimulateRequest) -> Dict[str, Any]:
-    """Simulate real-time streaming inference over a 10-second signal.
-
-    The signal is split into 100-sample chunks.  For each chunk a
-    sliding window is formed from samples ``[0 … end_of_chunk]``,
-    zero-padded on the right to 1000 samples, and passed through the
-    model so that the caller can observe how the prediction evolves
-    as more of the signal arrives.
-
-    The final entry uses the full 1000-sample signal without padding.
-    """
-    predictor = _get_predictor()
-    full_signal = np.array(body.signal, dtype=np.float64)
-
-    n_chunks = _SIGNAL_LENGTH // _CHUNK_SIZE
-    timeline: List[Dict[str, Any]] = []
-
-    try:
-        for i in range(n_chunks):
-            start = 0
-            end = (i + 1) * _CHUNK_SIZE
-            partial = full_signal[start:end]
-
-            # Zero-pad to full length for model compatibility
-            padded = np.zeros(_SIGNAL_LENGTH, dtype=np.float64)
-            padded[: len(partial)] = partial
-
-            result = predictor.predict(padded)
-            timeline.append(
-                {
-                    "chunk_index": i,
-                    "start_sample": start,
-                    "end_sample": end,
-                    "probability": result["probability"],
-                    "prediction": result["prediction"],
-                    "confidence": result["confidence"],
-                }
+        if signal.shape != (_SIGNAL_LENGTH, _NUM_LEADS):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Expected shape (1000, 12), got {signal.shape}"
             )
 
-        # Final full-signal prediction
-        final_result = predictor.predict(full_signal)
+        return predictor.predict(signal)
 
-        logger.info(
-            "Simulation complete: %d chunks, final pred=%d (prob=%.4f)",
-            n_chunks,
-            final_result["prediction"],
-            final_result["probability"],
-        )
+    except Exception as e:
+        logger.exception("File prediction failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/simulate")
+async def simulate(body: SimulateRequest):
+    predictor = _get_predictor()
+    signal = np.array(body.signal, dtype=np.float64)
+
+    timeline = []
+
+    try:
+        for i in range(_SIGNAL_LENGTH // _CHUNK_SIZE):
+            end = (i + 1) * _CHUNK_SIZE
+            partial = signal[:end]
+
+            padded = np.zeros((_SIGNAL_LENGTH, _NUM_LEADS))
+            padded[:end] = partial
+
+            result = predictor.predict(padded)
+
+            timeline.append({
+                "chunk_index": i,
+                "end_sample": end,
+                "probability": result["probability"],
+                "prediction": result["prediction"],
+                "confidence": result["confidence"],
+            })
+
+        final_result = predictor.predict(signal)
 
         return {
             "timeline_predictions": timeline,
             "final_prediction": final_result,
         }
-    except Exception as exc:
+
+    except Exception as e:
         logger.exception("Simulation failed")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail=str(e))
