@@ -69,15 +69,20 @@ export default function PredictionCard() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
-          className={`glass-card relative overflow-hidden p-6 ${
+          className={`glass-card relative overflow-hidden p-4 sm:p-5 md:p-6 lg:p-7 group ${
             isArrhythmia
               ? "border-red-500/20 shadow-glow-red"
               : "border-emerald-500/20 shadow-glow-emerald"
           }`}
         >
-          {/* Subtle background glow */}
+          {/* Decorative gradient background */}
           <div
-            className={`absolute -right-12 -top-12 h-40 w-40 rounded-full blur-3xl ${
+            className={`absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-300 ${
+              isArrhythmia ? "bg-red-500/20" : "bg-emerald-500/20"
+            }`}
+          />
+          <div
+            className={`absolute -right-20 -top-20 h-40 w-40 rounded-full blur-3xl opacity-0 group-hover:opacity-50 transition-opacity duration-500 ${
               isArrhythmia ? "bg-red-500/10" : "bg-emerald-500/10"
             }`}
           />
@@ -91,36 +96,36 @@ export default function PredictionCard() {
           )}
 
           {/* Header */}
-          <div className="relative mb-4 flex items-center gap-2">
-            <h2 className="text-sm font-semibold uppercase tracking-widest dark:text-gray-400 text-gray-500">
+          <div className="relative mb-3 sm:mb-4 flex items-center gap-2">
+            <h2 className="text-xs sm:text-sm font-semibold uppercase tracking-widest dark:text-gray-400 text-gray-500">
               Prediction Result
             </h2>
           </div>
 
-          {/* ── Main result ─────────────────────────────────── */}
-          <div className="relative flex items-center gap-4 mb-5">
+          {/* ── Main result (responsive) ─────────────────────────────────── */}
+          <div className="relative flex items-center gap-3 sm:gap-4 mb-4 sm:mb-5">
             <motion.div
               initial={{ scale: 0, rotate: -20 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ type: "spring", stiffness: 200, damping: 15 }}
-              className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${
+              className={`flex h-12 sm:h-14 w-12 sm:w-14 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl ${
                 isArrhythmia
                   ? "bg-red-500/20 text-red-400"
                   : "bg-emerald-500/20 text-emerald-400"
               }`}
             >
               {isArrhythmia ? (
-                <ShieldAlert className="h-7 w-7" />
+                <ShieldAlert className="h-6 sm:h-7 w-6 sm:w-7" />
               ) : (
-                <ShieldCheck className="h-7 w-7" />
+                <ShieldCheck className="h-6 sm:h-7 w-6 sm:w-7" />
               )}
             </motion.div>
-            <div>
+            <div className="min-w-0">
               <motion.p
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.2 }}
-                className={`text-lg font-bold tracking-wide ${
+                className={`text-sm sm:text-lg font-bold tracking-wide leading-tight ${
                   isArrhythmia
                     ? "text-red-400"
                     : "text-emerald-400"
@@ -130,30 +135,30 @@ export default function PredictionCard() {
                   ? "ARRHYTHMIA DETECTED"
                   : "NORMAL SINUS RHYTHM"}
               </motion.p>
-              <p className="text-xs dark:text-gray-500 text-gray-400 mt-0.5">
-                12-Lead IndustryCNN Analysis
+              <p className="text-xs dark:text-gray-500 text-gray-400 mt-0.5 leading-tight">
+                12-Lead IndustryCNN
               </p>
             </div>
           </div>
 
-          {/* ── Probability ─────────────────────────────────── */}
-          <div className="relative mb-5 rounded-xl dark:bg-white/5 bg-gray-50 p-4">
-            <div className="flex items-end justify-between">
-              <div>
+          {/* ── Probability (responsive) ─────────────────────────────────── */}
+          <div className="relative mb-4 sm:mb-5 rounded-lg sm:rounded-xl dark:bg-white/5 bg-gray-50 p-3 sm:p-4">
+            <div className="flex items-end justify-between gap-3">
+              <div className="min-w-0">
                 <p className="text-xs dark:text-gray-500 text-gray-400 mb-1">
                   Arrhythmia Probability
                 </p>
                 <p
-                  className={`text-4xl font-extrabold tabular-nums ${
+                  className={`text-3xl sm:text-4xl font-extrabold tabular-nums ${
                     isArrhythmia ? "text-red-400" : "text-emerald-400"
                   }`}
                 >
                   {animatedProb.toFixed(2)}
-                  <span className="text-lg font-semibold ml-0.5">%</span>
+                  <span className="text-sm sm:text-lg font-semibold ml-0.5">%</span>
                 </p>
               </div>
               <TrendingUp
-                className={`h-8 w-8 ${
+                className={`h-6 sm:h-8 w-6 sm:w-8 flex-shrink-0 ${
                   isArrhythmia
                     ? "text-red-500/30"
                     : "text-emerald-500/30"
@@ -162,7 +167,7 @@ export default function PredictionCard() {
             </div>
           </div>
 
-          {/* ── Confidence bar ──────────────────────────────── */}
+          {/* ── Confidence bar (responsive) ──────────────────────────────── */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs dark:text-gray-500 text-gray-400">
@@ -172,7 +177,7 @@ export default function PredictionCard() {
                 {animatedConf.toFixed(1)}%
               </p>
             </div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full dark:bg-white/10 bg-gray-200">
+            <div className="h-2 sm:h-2.5 w-full overflow-hidden rounded-full dark:bg-white/10 bg-gray-200">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${confidence * 100}%` }}

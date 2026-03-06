@@ -181,37 +181,39 @@ export default function UploadCard() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.1 }}
-      className="glass-card p-6"
+      className="glass-card p-4 sm:p-5 md:p-6"
     >
-      {/* ── Header ──────────────────────────────────────────── */}
-      <div className="mb-5 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-widest dark:text-gray-400 text-gray-500">
+      {/* ── Header (responsive) ──────────────────────────────── */}
+      <div className="mb-4 sm:mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-xs sm:text-sm font-semibold uppercase tracking-widest dark:text-gray-400 text-gray-500">
           ECG Input
         </h2>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2">
           {/* JSON toggle */}
           <button
             onClick={toggleJsonInputMode}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+            className={`flex items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-medium transition-all whitespace-nowrap ${
               jsonInputMode
                 ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
                 : "dark:bg-white/5 bg-gray-100 dark:text-gray-400 text-gray-600 border border-transparent dark:hover:bg-white/10 hover:bg-gray-200"
             }`}
           >
-            <Code2 className="h-3.5 w-3.5" />
-            JSON
+            <Code2 className="h-3 sm:h-3.5 w-3 sm:w-3.5" />
+            <span className="hidden sm:inline">JSON</span>
+            <span className="sm:hidden">JSON</span>
           </button>
           {/* Simulation toggle */}
           <button
             onClick={toggleSimulationMode}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+            className={`flex items-center gap-1 sm:gap-1.5 rounded-lg px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-medium transition-all whitespace-nowrap ${
               simulationMode
                 ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
                 : "dark:bg-white/5 bg-gray-100 dark:text-gray-400 text-gray-600 border border-transparent dark:hover:bg-white/10 hover:bg-gray-200"
             }`}
           >
-            <Zap className="h-3.5 w-3.5" />
-            Simulate
+            <Zap className="h-3 sm:h-3.5 w-3 sm:w-3.5" />
+            <span className="hidden sm:inline">Simulate</span>
+            <span className="sm:hidden">Sim</span>
           </button>
         </div>
       </div>
@@ -230,8 +232,8 @@ export default function UploadCard() {
               value={jsonText}
               onChange={(e) => setJsonText(e.target.value)}
               placeholder='Paste 1000×12 JSON array: [[lead1..lead12], ...]'
-              rows={8}
-              className="w-full rounded-xl border dark:border-white/10 border-gray-200 dark:bg-white/5 bg-gray-50 px-4 py-3 font-mono text-xs dark:text-gray-300 text-gray-700 placeholder-gray-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 transition-colors"
+              rows={6}
+              className="w-full rounded-lg sm:rounded-xl border dark:border-white/10 border-gray-200 dark:bg-white/5 bg-gray-50 px-3 sm:px-4 py-2 sm:py-3 font-mono text-xs dark:text-gray-300 text-gray-700 placeholder-gray-500 focus:border-emerald-500/50 focus:outline-none focus:ring-1 focus:ring-emerald-500/30 transition-colors"
             />
           </motion.div>
         ) : (
@@ -251,7 +253,7 @@ export default function UploadCard() {
               onDragLeave={() => setDragOver(false)}
               onDrop={onDrop}
               onClick={() => fileRef.current?.click()}
-              className={`cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition-all ${
+              className={`cursor-pointer rounded-lg sm:rounded-xl border-2 border-dashed p-6 sm:p-8 text-center transition-all ${
                 dragOver
                   ? "border-emerald-500 bg-emerald-500/10"
                   : signal
@@ -273,17 +275,17 @@ export default function UploadCard() {
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.9, opacity: 0 }}
-                    className="flex flex-col items-center gap-3"
+                    className="flex flex-col items-center gap-2 sm:gap-3"
                   >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20">
-                      <FileText className="h-6 w-6 text-emerald-400" />
+                    <div className="flex h-10 sm:h-12 w-10 sm:w-12 items-center justify-center rounded-lg sm:rounded-xl bg-emerald-500/20">
+                      <FileText className="h-5 sm:h-6 w-5 sm:w-6 text-emerald-400" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium dark:text-white text-gray-900">
+                      <p className="text-xs sm:text-sm font-medium dark:text-white text-gray-900 break-all">
                         {fileName}
                       </p>
                       <p className="mt-1 text-xs dark:text-gray-500 text-gray-400">
-                        1000 × 12 leads loaded
+                        1000 × 12 leads
                       </p>
                     </div>
                     <button
@@ -304,13 +306,13 @@ export default function UploadCard() {
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.9, opacity: 0 }}
-                    className="flex flex-col items-center gap-3"
+                    className="flex flex-col items-center gap-2 sm:gap-3"
                   >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl dark:bg-white/5 bg-gray-100">
-                      <Upload className="h-6 w-6 dark:text-gray-400 text-gray-500" />
+                    <div className="flex h-10 sm:h-12 w-10 sm:w-12 items-center justify-center rounded-lg sm:rounded-xl dark:bg-white/5 bg-gray-100">
+                      <Upload className="h-5 sm:h-6 w-5 sm:w-6 dark:text-gray-400 text-gray-500" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium dark:text-gray-300 text-gray-700">
+                      <p className="text-xs sm:text-sm font-medium dark:text-gray-300 text-gray-700">
                         Drop ECG file here
                       </p>
                       <p className="mt-1 text-xs dark:text-gray-500 text-gray-400">
@@ -325,23 +327,33 @@ export default function UploadCard() {
         )}
       </AnimatePresence>
 
-      {/* ── Predict button ──────────────────────────────────── */}
+      {/* ── Predict button (responsive) ──────────────────────────────── */}
       <motion.button
         whileHover={{ scale: 1.01 }}
         whileTap={{ scale: 0.98 }}
         onClick={handlePredict}
         disabled={loading}
-        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/20 transition-all hover:shadow-xl hover:shadow-emerald-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="mt-4 sm:mt-5 flex w-full items-center justify-center gap-2 rounded-lg sm:rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-4 sm:px-6 py-2.5 sm:py-3.5 text-xs sm:text-sm font-semibold text-white shadow-lg shadow-emerald-600/20 transition-all hover:shadow-xl hover:shadow-emerald-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? (
           <>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            {simulationMode ? "Simulating..." : "Predicting..."}
+            <Loader2 className="h-3.5 sm:h-4 w-3.5 sm:w-4 animate-spin" />
+            <span className="hidden sm:inline">
+              {simulationMode ? "Simulating..." : "Predicting..."}
+            </span>
+            <span className="sm:hidden">
+              {simulationMode ? "Simulating..." : "Running..."}
+            </span>
           </>
         ) : (
           <>
-            <Play className="h-4 w-4" />
-            {simulationMode ? "Run Simulation" : "Run Prediction"}
+            <Play className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
+            <span className="hidden sm:inline">
+              {simulationMode ? "Run Simulation" : "Run Prediction"}
+            </span>
+            <span className="sm:hidden">
+              {simulationMode ? "Simulate" : "Predict"}
+            </span>
           </>
         )}
       </motion.button>

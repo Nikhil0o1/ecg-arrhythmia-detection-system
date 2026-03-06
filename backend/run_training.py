@@ -163,7 +163,8 @@ def main() -> None:
     n_params = sum(p.numel() for p in model.parameters())
     logger.info("Model parameters: %s", f"{n_params:,}")
 
-    history = train_model(
+    # run training, history not needed here
+    train_model(
         model=model,
         loaders=loaders,
         pos_weight=pos_weight,

@@ -134,25 +134,34 @@ export default function MetricsPanel() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.5 }}
-      className="glass-card p-6"
+      className="glass-card relative overflow-hidden p-4 sm:p-5 md:p-6 lg:p-7 group"
     >
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-widest dark:text-gray-400 text-gray-500">
-          Model Performance
-        </h2>
-        <span className="rounded-md dark:bg-white/5 bg-gray-100 px-2 py-0.5 text-[10px] font-mono dark:text-gray-500 text-gray-400">
-          {modelName}
-        </span>
-      </div>
+      {/* Decorative gradient */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-5 bg-gradient-to-br from-emerald-500 to-teal-500 transition-opacity duration-300" />
+      
+      <div className="relative">
+        <div className="mb-4 sm:mb-5 md:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-500 flex-shrink-0">
+              <BarChart3 className="h-4 w-4" />
+            </div>
+            <h2 className="text-xs sm:text-sm font-semibold uppercase tracking-widest dark:text-gray-300 text-gray-700">
+              Model Performance
+            </h2>
+          </div>
+          <span className="rounded-md dark:bg-white/5 bg-gray-100 px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] font-mono dark:text-gray-500 text-gray-400 w-fit">
+            {modelName}
+          </span>
+        </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-1 gap-2 sm:gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {metricItems.map((m, i) => (
           <motion.div
             key={m.label}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.6 + i * 0.08 }}
-            className="rounded-xl dark:bg-white/[0.03] bg-gray-50 border dark:border-white/5 border-gray-200/50 p-4 transition-colors dark:hover:bg-white/[0.05] hover:bg-gray-100"
+            className="rounded-xl dark:bg-white/[0.03] bg-gray-50 border dark:border-white/5 border-gray-200/50 p-4 sm:p-5 transition-all duration-200 dark:hover:bg-white/[0.05] hover:bg-gray-100 dark:hover:border-white/10 hover:border-gray-300/50 group cursor-pointer"
           >
             <div className="mb-3 flex items-center gap-2">
               <div
@@ -180,6 +189,7 @@ export default function MetricsPanel() {
             </div>
           </motion.div>
         ))}
+      </div>
       </div>
     </motion.div>
   );

@@ -62,28 +62,29 @@ export default function ROCCurveChart() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.2 }}
-      className="glass-card p-6"
+      className="glass-card relative overflow-hidden p-4 sm:p-5 md:p-6 lg:p-7 group"
     >
-      {/* Header */}
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 dark:text-gray-500 text-gray-400" />
-          <h2 className="text-sm font-semibold uppercase tracking-widest dark:text-gray-400 text-gray-500">
-            ROC Curve
-          </h2>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="rounded-md dark:bg-emerald-500/10 bg-emerald-50 border dark:border-emerald-500/20 border-emerald-200 px-2.5 py-1 text-xs font-semibold text-emerald-500">
+      {/* Decorative gradient */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-5 bg-gradient-to-br from-emerald-500 to-teal-500 transition-opacity duration-300" />
+      
+      <div className="relative">
+        {/* Header (responsive) */}
+        <div className="mb-4 sm:mb-5 md:mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-500 flex-shrink-0">
+              <TrendingUp className="h-4 w-4" />
+            </div>
+            <h2 className="text-xs sm:text-sm font-semibold uppercase tracking-widest dark:text-gray-300 text-gray-700">
+              ROC Curve
+            </h2>
+          </div>
+          <span className="rounded-md dark:bg-emerald-500/10 bg-emerald-50 border dark:border-emerald-500/20 border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-500">
             AUC = {(rocCurve.auc * 100).toFixed(2)}%
           </span>
-          <span className="text-[10px] dark:text-gray-600 text-gray-400">
-            n = {rocCurve.n_samples.toLocaleString()}
-          </span>
         </div>
-      </div>
 
-      {/* Chart */}
-      <div className="rounded-xl dark:bg-white/[0.02] bg-gray-50/50 p-3">
+        {/* Chart */}
+        <div className="rounded-xl dark:bg-white/[0.02] bg-gray-50/50 p-4">
         <ResponsiveContainer width="100%" height={280}>
           <AreaChart data={chartData} margin={{ top: 10, right: 10, bottom: 5, left: 5 }}>
             <defs>
@@ -161,9 +162,10 @@ export default function ROCCurveChart() {
       </div>
 
       {/* Footer */}
-      <div className="mt-3 flex items-center justify-between text-[10px] dark:text-gray-600 text-gray-400">
+      <div className="mt-4 flex items-center justify-between border-t dark:border-white/5 border-gray-200/50 pt-3 text-[10px] dark:text-gray-600 text-gray-400">
         <span>{rocCurve.model_name} — Test Set Evaluation</span>
         <span>{chartData.length} data points</span>
+      </div>
       </div>
     </motion.div>
   );

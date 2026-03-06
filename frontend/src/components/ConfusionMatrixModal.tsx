@@ -33,24 +33,24 @@ export default function ConfusionMatrixModal() {
 
   return (
     <>
-      {/* Trigger button */}
+      {/* Trigger button (responsive) */}
       <motion.button
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         onClick={() => setCmModalOpen(true)}
         disabled={!cm}
-        className="glass-card flex items-center gap-3 px-5 py-4 cursor-pointer w-full disabled:opacity-50"
+        className="glass-card flex flex-col gap-2 sm:gap-0 sm:flex-row sm:items-center sm:gap-4 px-3 sm:px-6 py-4 sm:py-5 md:py-6 cursor-pointer w-full disabled:opacity-50 group hover:shadow-lg transition-all duration-300"
       >
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/15 text-violet-400">
-          <Grid3X3 className="h-5 w-5" />
+        <div className="flex h-9 sm:h-10 w-9 sm:w-10 items-center justify-center rounded-lg sm:rounded-xl bg-violet-500/15 text-violet-400 flex-shrink-0">
+          <Grid3X3 className="h-4 sm:h-5 w-4 sm:w-5" />
         </div>
-        <div className="text-left">
-          <p className="text-sm font-semibold dark:text-white text-gray-900">
+        <div className="flex-1 text-left">
+          <p className="text-xs sm:text-sm font-semibold dark:text-gray-200 text-gray-800">
             Confusion Matrix
           </p>
-          <p className="text-[11px] dark:text-gray-500 text-gray-400">
+          <p className="text-xs dark:text-gray-500 text-gray-400 mt-0.5">
             {cm
-              ? `${cm.total.toLocaleString()} test samples`
+              ? `${cm.total.toLocaleString()} samples`
               : "Loading..."}
           </p>
         </div>
@@ -72,23 +72,23 @@ export default function ConfusionMatrixModal() {
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-lg rounded-2xl dark:bg-clinical-card bg-white border dark:border-white/10 border-gray-200 shadow-2xl p-6"
+              className="relative w-full max-w-lg rounded-xl sm:rounded-2xl dark:bg-clinical-card bg-white border dark:border-white/10 border-gray-200 shadow-2xl p-4 sm:p-5 md:p-6"
             >
               {/* Close button */}
               <button
                 onClick={() => setCmModalOpen(false)}
-                className="absolute right-4 top-4 rounded-lg p-1.5 dark:text-gray-500 text-gray-400 hover:text-white dark:hover:bg-white/10 hover:bg-gray-100 transition-colors"
+                className="absolute right-3 sm:right-4 top-3 sm:top-4 rounded-lg p-1 sm:p-1.5 dark:text-gray-500 text-gray-400 hover:text-white dark:hover:bg-white/10 hover:bg-gray-100 transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
 
-              {/* Header */}
-              <div className="mb-6">
-                <h3 className="text-lg font-bold dark:text-white text-gray-900">
+              {/* Header (responsive) */}
+              <div className="mb-4 sm:mb-5 md:mb-6 pr-8">
+                <h3 className="text-base sm:text-lg font-bold dark:text-white text-gray-900">
                   Confusion Matrix
                 </h3>
-                <p className="text-xs dark:text-gray-500 text-gray-400 mt-1">
-                  {cm.model_name} — {cm.total.toLocaleString()} test samples
+                <p className="text-[10px] sm:text-xs dark:text-gray-500 text-gray-400 mt-1">
+                  {cm.model_name} — {cm.total.toLocaleString()} samples
                 </p>
               </div>
 

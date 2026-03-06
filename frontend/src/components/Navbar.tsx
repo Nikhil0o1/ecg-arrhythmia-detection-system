@@ -82,14 +82,14 @@ export default function Navbar() {
       transition={{ duration: 0.4, ease: "easeOut" }}
       className="sticky top-0 z-50 border-b border-white/5 bg-clinical-bg/80 backdrop-blur-xl dark:bg-clinical-bg/80 bg-white/80 dark:border-white/5 border-gray-200/60"
     >
-      <div className="mx-auto flex h-16 max-w-[1600px] items-center justify-between px-6">
+      <div className="mx-auto flex h-14 sm:h-16 max-w-[1600px] items-center justify-between px-3 sm:px-4 md:px-6">
         {/* ── Left: Logo + heartbeat ─────────────────────────── */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20">
-              <Activity className="h-5 w-5 text-white" strokeWidth={2.5} />
+        <div className="flex items-center gap-2 sm:gap-3 md:gap-4 min-w-0">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-lg sm:rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20 flex-shrink-0">
+              <Activity className="h-4 sm:h-5 w-4 sm:w-5 text-white" strokeWidth={2.5} />
             </div>
-            <span className="text-xl font-bold tracking-tight dark:text-white text-gray-900">
+            <span className="text-lg sm:text-xl font-bold tracking-tight dark:text-white text-gray-900 whitespace-nowrap">
               Cardio
               <span className="bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
                 AI
@@ -101,25 +101,28 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* ── Right: status badges ───────────────────────────── */}
-        <div className="flex items-center gap-3">
+        {/* ── Right: status badges (responsive) ───────────────────────────── */}
+        <div className="flex items-center gap-2 sm:gap-3">
           {/* Connection status */}
           <motion.div
             layout
-            className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-medium backdrop-blur-sm ${
+            className={`flex items-center gap-1.5 sm:gap-2 rounded-full px-2.5 sm:px-3.5 py-1 sm:py-1.5 text-xs font-medium backdrop-blur-sm ${
               connected
                 ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
                 : "border border-red-500/20 bg-red-500/10 text-red-400"
             }`}
           >
             {connected ? (
-              <Wifi className="h-3.5 w-3.5" />
+              <Wifi className="h-3 sm:h-3.5 w-3 sm:w-3.5" />
             ) : (
-              <WifiOff className="h-3.5 w-3.5" />
+              <WifiOff className="h-3 sm:h-3.5 w-3 sm:w-3.5" />
             )}
-            {connected ? "Connected" : "Disconnected"}
+            <span className="hidden sm:inline">
+              {connected ? "Connected" : "Disconnected"}
+            </span>
+            <span className="hidden sm:block h-1.5 w-1.5 rounded-full" />
             <span
-              className={`h-1.5 w-1.5 rounded-full ${
+              className={`h-1 w-1 sm:h-1.5 sm:w-1.5 rounded-full ${
                 connected
                   ? "bg-emerald-400 shadow-sm shadow-emerald-400"
                   : "bg-red-400 shadow-sm shadow-red-400"
@@ -127,12 +130,12 @@ export default function Navbar() {
             />
           </motion.div>
 
-          {/* Device badge */}
+          {/* Device badge - hidden on small mobile */}
           {connected && (
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="flex items-center gap-1.5 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-400"
+              className="hidden sm:flex items-center gap-1.5 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-400"
             >
               <Cpu className="h-3.5 w-3.5" />
               {device.toUpperCase()}
@@ -142,7 +145,7 @@ export default function Navbar() {
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 dark:border-white/10 border-gray-200 bg-white/5 dark:bg-white/5 bg-gray-100 transition-colors hover:bg-white/10 dark:hover:bg-white/10 hover:bg-gray-200"
+            className="flex h-8 sm:h-9 w-8 sm:w-9 items-center justify-center rounded-lg sm:rounded-xl border border-white/10 dark:border-white/10 border-gray-200 bg-white/5 dark:bg-white/5 bg-gray-100 transition-colors hover:bg-white/10 dark:hover:bg-white/10 hover:bg-gray-200"
             aria-label="Toggle theme"
           >
             {theme === "dark" ? (

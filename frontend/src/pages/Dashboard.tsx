@@ -14,17 +14,17 @@ export default function Dashboard() {
   const { signal, simulationTimeline, prediction } = useECGStore();
 
   return (
-    <div className="mx-auto max-w-[1600px] px-6 py-6">
-      {/* ── Two-column layout ───────────────────────────────── */}
-      <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
+    <div className="mx-auto w-full max-w-[1600px] px-3 py-3 sm:px-4 sm:py-4 md:px-6 md:py-6">
+      {/* ── Two-column layout (responsive) ───────────────────────────────── */}
+      <div className="grid gap-4 sm:gap-5 md:gap-6 lg:grid-cols-[420px_1fr]">
         {/* LEFT PANEL */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-5 md:space-y-6 lg:order-1 order-1">
           <UploadCard />
           {prediction && <ProbabilityGauge />}
         </div>
 
         {/* RIGHT PANEL */}
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-5 md:space-y-6 lg:order-2 order-2">
           <PredictionCard />
 
           {signal && (
@@ -42,18 +42,18 @@ export default function Dashboard() {
       </div>
 
       {/* ── Metrics row (full width) ────────────────────────── */}
-      <div className="mt-6">
+      <div className="mt-4 sm:mt-5 md:mt-6">
         <MetricsPanel />
       </div>
 
-      {/* ── Analytics row: ROC curve + Confusion matrix ─────── */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+      {/* ── Analytics row: ROC curve + Confusion matrix (responsive) ─────── */}
+      <div className="mt-4 sm:mt-5 md:mt-6 grid gap-4 sm:gap-5 md:gap-6 lg:grid-cols-2">
         <ROCCurveChart />
         <ConfusionMatrixModal />
       </div>
 
       {/* ── Model comparison (full width) ───────────────────── */}
-      <div className="mt-6">
+      <div className="mt-4 sm:mt-5 md:mt-6">
         <ModelComparisonChart />
       </div>
     </div>

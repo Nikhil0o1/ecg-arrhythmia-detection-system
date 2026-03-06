@@ -87,47 +87,60 @@ export default function ModelComparisonChart() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.3 }}
-      className="glass-card p-6"
+      className="glass-card relative overflow-hidden p-4 sm:p-5 md:p-6 lg:p-7 group"
     >
-      {/* Header */}
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-widest dark:text-gray-400 text-gray-500">
-          Model Comparison
-        </h2>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] dark:text-gray-600 text-gray-400">
-            {modelNames.length} models
-          </span>
-          <button
-            onClick={() =>
-              setChartMode((m) => (m === "bar" ? "radar" : "bar"))
-            }
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium dark:bg-white/5 bg-gray-100 dark:text-gray-400 text-gray-600 dark:hover:bg-white/10 hover:bg-gray-200 transition-colors"
-          >
-            {chartMode === "bar" ? (
-              <>
-                <Hexagon className="h-3.5 w-3.5" />
-                Radar
-              </>
-            ) : (
-              <>
-                <BarChart3 className="h-3.5 w-3.5" />
-                Bar
-              </>
-            )}
-          </button>
+      {/* Decorative gradient */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-5 bg-gradient-to-br from-emerald-500 to-teal-500 transition-opacity duration-300" />
+      
+      <div className="relative">
+        {/* Header (responsive) */}
+        <div className="mb-4 sm:mb-5 md:mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/15 text-violet-500 flex-shrink-0">
+              <BarChart3 className="h-4 w-4" />
+            </div>
+            <h2 className="text-xs sm:text-sm font-semibold uppercase tracking-widest dark:text-gray-300 text-gray-700">
+              Model Comparison
+            </h2>
+          </div>
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="rounded-md dark:bg-white/5 bg-gray-100 px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] font-mono dark:text-gray-500 text-gray-400">
+              {modelNames.length} models
+            </span>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() =>
+                setChartMode((m) => (m === "bar" ? "radar" : "bar"))
+              }
+              className="flex items-center gap-1 sm:gap-1.5 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium dark:bg-white/5 bg-gray-100 dark:text-gray-400 text-gray-600 dark:hover:bg-white/10 hover:bg-gray-200 transition-colors whitespace-nowrap"
+            >
+              {chartMode === "bar" ? (
+                <>
+                  <Hexagon className="h-3 sm:h-3.5 w-3 sm:w-3.5" />
+                  <span className="hidden sm:inline">Radar</span>
+                  <span className="sm:hidden">Radar</span>
+                </>
+              ) : (
+                <>
+                  <BarChart3 className="h-3 sm:h-3.5 w-3 sm:w-3.5" />
+                  <span className="hidden sm:inline">Bar</span>
+                  <span className="sm:hidden">Bar</span>
+                </>
+              )}
+            </motion.button>
+          </div>
         </div>
-      </div>
 
-      {/* Model legend */}
-      <div className="mb-4 flex flex-wrap gap-3">
+      {/* Model legend (responsive) */}
+      <div className="mb-3 sm:mb-4 flex flex-wrap gap-2 sm:gap-3">
         {modelNames.map((name) => (
-          <div key={name} className="flex items-center gap-1.5">
+          <div key={name} className="flex items-center gap-1">
             <span
-              className="h-2.5 w-2.5 rounded-full"
+              className="h-2 sm:h-2.5 w-2 sm:w-2.5 rounded-full"
               style={{ backgroundColor: MODEL_COLORS[name] ?? "#6b7280" }}
             />
-            <span className="text-[11px] font-medium dark:text-gray-400 text-gray-600">
+            <span className="text-[10px] sm:text-[11px] font-medium dark:text-gray-400 text-gray-600">
               {name}
             </span>
           </div>
@@ -238,6 +251,7 @@ export default function ModelComparisonChart() {
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </motion.div>
   );
 }

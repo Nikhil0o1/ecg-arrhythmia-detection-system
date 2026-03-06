@@ -42,23 +42,29 @@ export default function SimulationChart() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.4 }}
-      className="glass-card p-6"
+      className="glass-card relative overflow-hidden p-4 sm:p-5 md:p-6 lg:p-7 group"
     >
-      {/* Header */}
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Timer className="h-4 w-4 dark:text-gray-500 text-gray-400" />
-          <h2 className="text-sm font-semibold uppercase tracking-widest dark:text-gray-400 text-gray-500">
-            Simulation Timeline
-          </h2>
+      {/* Decorative gradient */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-5 bg-gradient-to-br from-emerald-500 to-teal-500 transition-opacity duration-300" />
+      
+      <div className="relative">
+        {/* Header (responsive) */}
+        <div className="mb-4 sm:mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/15 text-amber-500 flex-shrink-0">
+              <Timer className="h-4 w-4" />
+            </div>
+            <h2 className="text-xs sm:text-sm font-semibold uppercase tracking-widest dark:text-gray-300 text-gray-700">
+              Simulation Timeline
+            </h2>
+          </div>
+          <span className="rounded-md dark:bg-white/5 bg-gray-100 px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] font-mono dark:text-gray-500 text-gray-400 w-fit">
+            {data.length} chunks
+          </span>
         </div>
-        <span className="text-xs dark:text-gray-600 text-gray-400">
-          {data.length} chunks analysed
-        </span>
-      </div>
 
-      {/* Chart */}
-      <div className="rounded-xl dark:bg-white/[0.02] bg-gray-50/50 p-3">
+        {/* Chart */}
+        <div className="rounded-lg sm:rounded-xl dark:bg-white/[0.02] bg-gray-50/50 p-2 sm:p-4">
         <ResponsiveContainer width="100%" height={220}>
           <AreaChart data={data} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
             <defs>
@@ -138,12 +144,12 @@ export default function SimulationChart() {
       {/* Summary */}
       {simulationFinal && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8 }}
-          className="mt-4 flex items-center justify-between rounded-lg dark:bg-white/5 bg-gray-100 px-4 py-2.5 text-xs"
+          className="mt-4 flex items-center justify-between rounded-lg dark:bg-white/5 bg-gray-100 px-4 py-3 text-xs border dark:border-white/5 border-gray-200/50"
         >
-          <span className="dark:text-gray-400 text-gray-500">Final Prediction</span>
+          <span className="dark:text-gray-400 text-gray-500 font-medium">Final Prediction</span>
           <span
             className={`font-semibold ${
               isArrhythmia ? "text-red-400" : "text-emerald-400"
@@ -154,6 +160,7 @@ export default function SimulationChart() {
           </span>
         </motion.div>
       )}
+      </div>
     </motion.div>
   );
 }

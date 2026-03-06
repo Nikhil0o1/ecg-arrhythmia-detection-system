@@ -8,7 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize2, Activity } from "lucide-react";
 import { useECGStore } from "@/store/useECGStore";
 
 const LEAD_NAMES = [
@@ -95,38 +95,54 @@ export default function WaveformViewer() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.3 }}
-      className="glass-card p-6"
+      className="glass-card relative overflow-hidden p-4 sm:p-5 md:p-6 lg:p-7 group"
     >
-      {/* Header */}
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-widest dark:text-gray-400 text-gray-500">
-          12-Lead ECG Waveform
-        </h2>
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={zoomIn}
-            className="rounded-lg p-1.5 dark:text-gray-400 text-gray-500 dark:hover:bg-white/10 hover:bg-gray-100 transition-colors"
-            aria-label="Zoom in"
-          >
-            <ZoomIn className="h-4 w-4" />
-          </button>
-          <button
-            onClick={zoomOut}
-            className="rounded-lg p-1.5 dark:text-gray-400 text-gray-500 dark:hover:bg-white/10 hover:bg-gray-100 transition-colors"
-            aria-label="Zoom out"
-          >
-            <ZoomOut className="h-4 w-4" />
-          </button>
-          <button
-            onClick={resetZoom}
-            className="rounded-lg p-1.5 dark:text-gray-400 text-gray-500 dark:hover:bg-white/10 hover:bg-gray-100 transition-colors"
-            aria-label="Reset"
-          >
-            <Maximize2 className="h-4 w-4" />
-          </button>
-          <span className="ml-2 rounded-md dark:bg-white/5 bg-gray-100 px-2 py-0.5 text-[10px] font-mono dark:text-gray-500 text-gray-400">
-            {zoom.toFixed(1)}×
-          </span>
+      {/* Decorative gradient */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-5 bg-gradient-to-br from-emerald-500 to-teal-500 transition-opacity duration-300" />
+      
+      <div className="relative">
+        {/* Header (responsive) */}
+        <div className="mb-4 sm:mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-500 flex-shrink-0">
+              <Activity className="h-4 w-4" />
+            </div>
+            <h2 className="text-xs sm:text-sm font-semibold uppercase tracking-widest dark:text-gray-300 text-gray-700 truncate">
+              12-Lead ECG Waveform
+            </h2>
+          </div>
+          <div className="flex items-center gap-1 sm:gap-1.5">
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={zoomIn}
+              className="rounded-lg p-1.5 sm:p-2 dark:text-gray-400 text-gray-500 dark:hover:bg-white/10 hover:bg-gray-200 transition-colors flex-shrink-0"
+              aria-label="Zoom in"
+            >
+              <ZoomIn className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={zoomOut}
+              className="rounded-lg p-1.5 sm:p-2 dark:text-gray-400 text-gray-500 dark:hover:bg-white/10 hover:bg-gray-200 transition-colors flex-shrink-0"
+              aria-label="Zoom out"
+            >
+              <ZoomOut className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={resetZoom}
+              className="rounded-lg p-1.5 sm:p-2 dark:text-gray-400 text-gray-500 dark:hover:bg-white/10 hover:bg-gray-200 transition-colors flex-shrink-0"
+              aria-label="Reset"
+            >
+              <Maximize2 className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
+            </motion.button>
+            <span className="ml-1 sm:ml-2 rounded-md dark:bg-white/5 bg-gray-100 px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] font-mono dark:text-gray-500 text-gray-400 flex-shrink-0">
+              {zoom.toFixed(1)}×
+            </span>
+          </div>
         </div>
       </div>
 
@@ -203,7 +219,7 @@ export default function WaveformViewer() {
       </div>
 
       {/* Status bar */}
-      <div className="mt-3 flex items-center justify-between text-[10px] dark:text-gray-600 text-gray-400">
+      <div className="mt-4 flex items-center justify-between border-t dark:border-white/5 border-gray-200/50 pt-3 text-[10px] dark:text-gray-600 text-gray-400">
         <span>1000 samples × 12 leads</span>
         {prediction && (
           <span
