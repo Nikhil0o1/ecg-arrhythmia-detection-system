@@ -14,4 +14,4 @@ services:
     staticPublishPath: frontend/dist
     envVars:
       - key: VITE_API_URL
-        value: https://ecg-backend.onrender.com
+        value: https://ecg-arrhythmia-detection-system-backend.onrender.com
